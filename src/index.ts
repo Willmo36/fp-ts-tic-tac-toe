@@ -1,10 +1,10 @@
+import * as IO from "fp-ts/lib/IO";
 import * as Option from "fp-ts/lib/Option";
 import { pipe } from "fp-ts/lib/pipeable";
 import * as Task from "fp-ts/lib/Task";
 import * as TE from "fp-ts/lib/TaskEither";
 import Realine from "readline";
-import { Board, commitMove, GameState, initialGameState, Position, showCellState, findWinner } from "./GameState";
-
+import { Board, commitMove, findWinner, GameState, initialGameState, Position, showCellState } from "./GameState";
 
 const rl = Realine.createInterface({
   input: process.stdin,
@@ -20,13 +20,18 @@ const question = (q: string): Task.Task<string> => () => {
   );
 };
 
+const clear: IO.IO<void> = () => {
+  console.clear();
+};
 
+const write = (str: string): IO.IO<void> => () => {
+  rl.write(str);
+};
 
 function loop(gs: GameState): TE.TaskEither<any, GameState> {
   const player = gs.lastMove === "x" ? "o" : "x";
-  console.clear();
-  render(gs.board);
-  return pipe(
+
+  const foo = pipe(
     TE.taskEither.fromTask<any, string>(
       question(`Choose cell, Player ${player}:`)
     ),
@@ -54,6 +59,13 @@ function loop(gs: GameState): TE.TaskEither<any, GameState> {
       )
     )
   );
+
+  return pipe(
+    clear,
+    IO.chain(() => render(gs.board)),
+    TE.taskEitherSeq.fromIO,
+    TE.chain(() => foo)
+  );
 }
 
 //credit to https://flaviocopes.com/javascript-template-literals/
@@ -68,7 +80,7 @@ const renderBoard = (board: Board) => (
   );
 };
 
-function render(gs: Board) {
+const render = (gs: Board): IO.IO<void> => () => {
   const frame = renderBoard(gs)`
    _____________________________
   |         |         |         |
@@ -83,6 +95,6 @@ function render(gs: Board) {
     `;
 
   console.log(frame);
-}
+};
 
 loop(initialGameState)();
